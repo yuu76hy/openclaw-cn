@@ -11,6 +11,7 @@ Docs: https://clawd.org.cn/
 - **火山引擎 Coding Plan 支持**：新增火山引擎 Coding Plan 配置选项，使用 OpenAI 兼容协议（base URL: `https://ark.cn-beijing.volces.com/api/coding/v3`），支持 doubao-seed-2.0-code、glm-4.7、deepseek-v3.2、kimi-k2-thinking、kimi-k2.5 等模型
 - **技能加载安全钩子修复**：before_skills_load 处理安全阻断与配置一致性修复（#452，感谢 @qqdxyg）
 - **Memory LanceDB 云存储支持**：新增 `storageOptions` 配置项，支持 S3/GCS 等云对象存储后端（#454，感谢 @ddupg）
+- **Memory LanceDB 本地 Embedding**：新增 `local` embedding provider，基于 node-llama-cpp 支持 GGUF 格式本地向量模型，默认模型 bge-small-zh-v1.5（#459，感谢 @ddupg）
 
 ### bug修复
 
