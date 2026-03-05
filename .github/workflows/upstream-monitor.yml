@@ -220,36 +220,37 @@ jobs:
           fi
 
           # ---- 调用 AI API ----
+          # 将请求体写入文件，避免 "Argument list too long" 错误
           if [ "$AI_PROVIDER" = "anthropic" ]; then
-            REQUEST_BODY=$(jq -n --arg model "$MODEL" --argjson max_tokens "$MAX_TOKENS" --rawfile prompt /tmp/ai-prompt.txt '{
+            jq -n --arg model "$MODEL" --argjson max_tokens "$MAX_TOKENS" --rawfile prompt /tmp/ai-prompt.txt '{
               model: $model, max_tokens: $max_tokens,
               messages: [{role: "user", content: $prompt}]
-            }')
+            }' > /tmp/ai-request.json
             curl -s "${BASE_URL}/v1/messages" \
               -H "Content-Type: application/json" \
               -H "x-api-key: $AI_API_KEY" \
               -H "anthropic-version: 2023-06-01" \
-              -d "$REQUEST_BODY" > /tmp/ai-response.json
+              --data-binary @/tmp/ai-request.json > /tmp/ai-response.json
             RESPONSE=$(jq -r '.content[0].text' /tmp/ai-response.json 2>/dev/null)
           else
             # reasoner 模型不支持 temperature 参数
             if [[ "$MODEL" == *reasoner* ]] || [[ "$MODEL" == *r1* ]]; then
-              REQUEST_BODY=$(jq -n --arg model "$MODEL" --argjson max_tokens "$MAX_TOKENS" --rawfile prompt /tmp/ai-prompt.txt '{
+              jq -n --arg model "$MODEL" --argjson max_tokens "$MAX_TOKENS" --rawfile prompt /tmp/ai-prompt.txt '{
                 model: $model,
                 messages: [{role: "user", content: $prompt}],
                 max_tokens: $max_tokens
-              }')
+              }' > /tmp/ai-request.json
             else
-              REQUEST_BODY=$(jq -n --arg model "$MODEL" --argjson max_tokens "$MAX_TOKENS" --rawfile prompt /tmp/ai-prompt.txt '{
+              jq -n --arg model "$MODEL" --argjson max_tokens "$MAX_TOKENS" --rawfile prompt /tmp/ai-prompt.txt '{
                 model: $model,
                 messages: [{role: "user", content: $prompt}],
                 max_tokens: $max_tokens, temperature: 0.1
-              }')
+              }' > /tmp/ai-request.json
             fi
             curl -s "${BASE_URL}/chat/completions" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer $AI_API_KEY" \
-              -d "$REQUEST_BODY" > /tmp/ai-response.json
+              --data-binary @/tmp/ai-request.json > /tmp/ai-response.json
             RESPONSE=$(jq -r '.choices[0].message.content' /tmp/ai-response.json 2>/dev/null)
           fi
 
