@@ -53,6 +53,9 @@ jobs:
           elif [[ "$GIT_TAG" == *"-beta"* ]]; then
             echo "tag=beta" >> $GITHUB_OUTPUT
             echo "Publishing to beta channel"
+          elif [[ "$GIT_TAG" == *"-alpha"* ]]; then
+            echo "tag=alpha" >> $GITHUB_OUTPUT
+            echo "Publishing to alpha channel"
           else
             echo "tag=latest" >> $GITHUB_OUTPUT
             echo "Publishing to latest channel"
