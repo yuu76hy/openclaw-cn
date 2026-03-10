@@ -61,39 +61,13 @@ jobs:
         run: pnpm add -wD esbuild
 
       - name: Bundle with esbuild
-        shell: pwsh
-        run: |
-          pnpm exec esbuild dist/entry.js --bundle --platform=node --format=cjs --outfile=dist/bundle.cjs --external:better-sqlite3 --external:@napi-rs/canvas --external:node-llama-cpp --external:sharp --external:fsevents --external:@lydell/node-pty --external:playwright-core --external:@mariozechner/clipboard-win32-x64-msvc --external:*.node
-
-      - name: Create polyfill header
-        shell: pwsh
-        run: |
-          $polyfill = @"
-          // Polyfill for import.meta.url in pkg bundle
-          if (typeof import.meta === 'undefined') {
-            globalThis.importMeta = {};
-          }
-          try {
-            if (!import.meta.url) {
-              import.meta.url = 'file://' + __filename;
-            }
-          } catch (e) {
-            globalThis.importMeta = { url: 'file://' + __filename };
-          }
-          "@
-          
-          $bundle = Get-Content -Path "dist/bundle.cjs" -Raw
-          $newBundle = $polyfill + "`n" + $bundle
-          Set-Content -Path "dist/bundle-polyfill.cjs" -Value $newBundle -NoNewline
+        run: pnpm exec esbuild dist/entry.js --bundle --platform=node --format=cjs --outfile=dist/bundle.cjs --external:better-sqlite3 --external:@napi-rs/canvas --external:node-llama-cpp --external:sharp --external:fsevents --external:@lydell/node-pty --external:playwright-core --external:@mariozechner/clipboard-win32-x64-msvc --external:*.node
 
       - name: Install pkg
         run: npm install -g @yao-pkg/pkg
 
       - name: Build EXE
-        run: |
-          $env:NODE_OPTIONS="--max-old-space-size=8192"
-          pkg dist/bundle-polyfill.cjs --targets node22-win-x64 --output dist/openclaw-cn.exe --compress GZip
-        shell: pwsh
+        run: pkg dist/bundle.cjs --targets node22-win-x64 --output dist/openclaw-cn.exe --compress GZip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
