@@ -73,117 +73,11 @@ jobs:
           pkg dist/bundle.cjs --targets node22-win-x64 --output dist/openclaw-cn.exe --compress GZip
         shell: pwsh
 
-      - name: Create portable package
-        shell: pwsh
-        run: |
-          $portableDir = "dist/openclaw-cn-portable"
-          New-Item -ItemType Directory -Force -Path $portableDir
-          
-          Copy-Item -Recurse -Force "dist/*.js" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/*.json" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/acp" $portableDir
-          Copy-Item -Recurse -Force "dist/agents" $portableDir
-          Copy-Item -Recurse -Force "dist/auto-reply" $portableDir
-          Copy-Item -Recurse -Force "dist/browser" $portableDir
-          Copy-Item -Recurse -Force "dist/canvas-host" $portableDir
-          Copy-Item -Recurse -Force "dist/channels" $portableDir
-          Copy-Item -Recurse -Force "dist/cli" $portableDir
-          Copy-Item -Recurse -Force "dist/commands" $portableDir
-          Copy-Item -Recurse -Force "dist/config" $portableDir
-          Copy-Item -Recurse -Force "dist/control-ui" $portableDir
-          Copy-Item -Recurse -Force "dist/cron" $portableDir
-          Copy-Item -Recurse -Force "dist/daemon" $portableDir
-          Copy-Item -Recurse -Force "dist/discord" $portableDir
-          Copy-Item -Recurse -Force "dist/feishu" $portableDir
-          Copy-Item -Recurse -Force "dist/gateway" $portableDir
-          Copy-Item -Recurse -Force "dist/hooks" $portableDir
-          Copy-Item -Recurse -Force "dist/imessage" $portableDir
-          Copy-Item -Recurse -Force "dist/infra" $portableDir
-          Copy-Item -Recurse -Force "dist/line" $portableDir
-          Copy-Item -Recurse -Force "dist/logging" $portableDir
-          Copy-Item -Recurse -Force "dist/macOS" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/markdown" $portableDir
-          Copy-Item -Recurse -Force "dist/media" $portableDir
-          Copy-Item -Recurse -Force "dist/memory" $portableDir
-          Copy-Item -Recurse -Force "dist/node-host" $portableDir
-          Copy-Item -Recurse -Force "dist/plugin-sdk" $portableDir
-          Copy-Item -Recurse -Force "dist/plugins" $portableDir
-          Copy-Item -Recurse -Force "dist/process" $portableDir
-          Copy-Item -Recurse -Force "dist/providers" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/routing" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/security" $portableDir
-          Copy-Item -Recurse -Force "dist/sessions" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/shared" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/signal" $portableDir
-          Copy-Item -Recurse -Force "dist/slack" $portableDir
-          Copy-Item -Recurse -Force "dist/telegram" $portableDir
-          Copy-Item -Recurse -Force "dist/terminal" $portableDir
-          Copy-Item -Recurse -Force "dist/tts" $portableDir
-          Copy-Item -Recurse -Force "dist/tui" $portableDir
-          Copy-Item -Recurse -Force "dist/utils" $portableDir
-          Copy-Item -Recurse -Force "dist/web" $portableDir
-          Copy-Item -Recurse -Force "dist/whatsapp" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "dist/wizard" $portableDir
-          Copy-Item -Recurse -Force "skills" $portableDir
-          Copy-Item -Recurse -Force "patches" $portableDir -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "node_modules" $portableDir
-          
-          Copy-Item -Path "dist/openclaw-cn.exe" -Destination $portableDir
-
-      - name: Create launch scripts
-        shell: pwsh
-        run: |
-          $portableDir = "dist/openclaw-cn-portable"
-          
-          $cmdContent = @"
-          @echo off
-          setlocal
-          set "SCRIPT_DIR=%~dp0"
-          set "NODE_PATH=%SCRIPT_DIR%node"
-          set "PATH=%NODE_PATH%;%PATH%"
-          if exist "%SCRIPT_DIR%openclaw-cn.exe" (
-            "%SCRIPT_DIR%openclaw-cn.exe" %*
-          ) else (
-            "%SCRIPT_DIR%node\node.exe" "%SCRIPT_DIR%dist\entry.js" %*
-          )
-          endlocal
-          "@
-          Set-Content -Path "$portableDir/openclaw-cn.cmd" -Value $cmdContent -Encoding ASCII
-          
-          $ps1Content = @"
-          `$ScriptDir = Split-Path -Parent `$MyInvocation.MyCommand.Path
-          `$env:PATH = "`$ScriptDir\node;`$env:PATH"
-          if (Test-Path "`$ScriptDir\openclaw-cn.exe") {
-            & "`$ScriptDir\openclaw-cn.exe" @args
-          } else {
-            & "`$ScriptDir\node\node.exe" "`$ScriptDir\dist\entry.js" @args
-          }
-          "@
-          Set-Content -Path "$portableDir/openclaw-cn.ps1" -Value $ps1Content -Encoding UTF8
-
-      - name: Download Node.js portable
-        shell: pwsh
-        run: |
-          $nodeVersion = "v22.12.0"
-          $nodeUrl = "https://nodejs.org/dist/$nodeVersion/node-$nodeVersion-win-x64.zip"
-          Invoke-WebRequest -Uri $nodeUrl -OutFile "node.zip"
-          Expand-Archive -Path "node.zip" -DestinationPath "node-temp"
-          Move-Item -Path "node-temp/node-$nodeVersion-win-x64" -Destination "dist/openclaw-cn-portable/node"
-          Remove-Item -Path "node.zip", "node-temp" -Recurse -Force
-
-      - name: Create ZIP archive
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.version }}"
-          Compress-Archive -Path "dist/openclaw-cn-portable" -DestinationPath "openclaw-cn-$version-win-x64.zip"
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: openclaw-cn-windows
-          path: |
-            dist/openclaw-cn.exe
-            openclaw-cn-*.zip
+          path: dist/openclaw-cn.exe
 
       - name: Create Release
         if: github.event_name == 'push' || github.event.inputs.version != ''
@@ -191,32 +85,23 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: OpenClaw CN ${{ steps.version.outputs.version }}
-          files: |
-            dist/openclaw-cn.exe
-            openclaw-cn-*.zip
+          files: dist/openclaw-cn.exe
           body: |
             ## OpenClaw CN ${{ steps.version.outputs.version }}
             
             ### 下载说明
-            - `openclaw-cn.exe` - 单独的可执行文件（需要 Node.js 22+ 环境）
-            - `openclaw-cn-*-win-x64.zip` - 便携版（包含 Node.js 运行时，解压即用）
+            - `openclaw-cn.exe` - 可执行文件
             
             ### 使用方法
-            
-            #### 便携版
-            1. 下载并解压 `openclaw-cn-*-win-x64.zip`
-            2. 双击运行 `openclaw-cn.cmd` 或在 PowerShell 中运行 `.\openclaw-cn.ps1`
-            
-            #### 单独 exe
-            需要先安装 Node.js 22+，然后直接运行 `openclaw-cn.exe`
+            直接运行 `openclaw-cn.exe`
             
             ### 快速开始
             ```bash
             # 运行安装向导
-            openclaw-cn onboard --install-daemon
+            openclaw-cn.exe onboard --install-daemon
             
             # 启动网关
-            openclaw-cn gateway --port 18789 --verbose
+            openclaw-cn.exe gateway --port 18789 --verbose
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
