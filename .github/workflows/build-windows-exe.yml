@@ -60,39 +60,31 @@ jobs:
       - name: Install esbuild
         run: pnpm add -wD esbuild
 
-      - name: Create polyfill for import.meta.url
+      - name: Bundle with esbuild
         shell: pwsh
         run: |
-          $polyfill = @'
-          // Polyfill for import.meta.url in pkg bundle
-          const __filename = process.pkg?.defaultEntr?.entry || process.argv[1];
-          const __dirname = require('path').dirname(__filename);
-          
-          // Override import.meta
-          if (!import.meta) {
-            import.meta = {};
-          }
-          if (!import.meta.url) {
-            import.meta.url = 'file://' + __filename;
-          }
-          '@
-          $polyfillPath = "dist/polyfill.js"
-          New-Item -ItemType Directory -Force -Path "dist"
-          Set-Content -Path $polyfillPath -Value $polyfill -Encoding UTF8
+          pnpm exec esbuild dist/entry.js --bundle --platform=node --format=cjs --outfile=dist/bundle.cjs --external:better-sqlite3 --external:@napi-rs/canvas --external:node-llama-cpp --external:sharp --external:fsevents --external:@lydell/node-pty --external:playwright-core --external:@mariozechner/clipboard-win32-x64-msvc --external:*.node
 
-      - name: Bundle with esbuild
+      - name: Create polyfill header
+        shell: pwsh
         run: |
-          $polyfillPath = "dist/polyfill.js"
-          $entryPath = "dist/entry.js"
-          $bundlePath = "dist/bundle.cjs"
+          $polyfill = @"
+          // Polyfill for import.meta.url in pkg bundle
+          if (typeof import.meta === 'undefined') {
+            globalThis.importMeta = {};
+          }
+          try {
+            if (!import.meta.url) {
+              import.meta.url = 'file://' + __filename;
+            }
+          } catch (e) {
+            globalThis.importMeta = { url: 'file://' + __filename };
+          }
+          "@
           
-          # Prepend polyfill to bundle
-          $content = Get-Content $polyfillPath -Raw
-          $entry = Get-Content $entryPath -Raw
-          $wrapped = "$content`n$entry"
-          Set-Content -Path $bundlePath -Value $wrapped -Encoding UTF8
-          
-          pnpm exec esbuild $bundlePath --bundle --platform=node --format=cjs --outfile=dist/bundle-final.cjs --external:better-sqlite3 --external:@napi-rs/canvas --external:node-llama-cpp --external:sharp --external:fsevents --external:@lydell/node-pty --external:playwright-core --external:@mariozechner/clipboard-win32-x64-msvc --external:*.node
+          $bundle = Get-Content -Path "dist/bundle.cjs" -Raw
+          $newBundle = $polyfill + "`n" + $bundle
+          Set-Content -Path "dist/bundle-polyfill.cjs" -Value $newBundle -NoNewline
 
       - name: Install pkg
         run: npm install -g @yao-pkg/pkg
@@ -100,7 +92,7 @@ jobs:
       - name: Build EXE
         run: |
           $env:NODE_OPTIONS="--max-old-space-size=8192"
-          pkg dist/bundle-final.cjs --targets node22-win-x64 --output dist/openclaw-cn.exe --compress GZip
+          pkg dist/bundle-polyfill.cjs --targets node22-win-x64 --output dist/openclaw-cn.exe --compress GZip
         shell: pwsh
 
       - name: Upload artifact
