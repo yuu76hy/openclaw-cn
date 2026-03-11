@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows Portable
 
 on:
   push:
@@ -57,23 +57,62 @@ jobs:
       - name: Build UI
         run: pnpm ui:build
 
-      - name: Install esbuild
-        run: pnpm add -wD esbuild
+      - name: Download Node.js portable
+        shell: pwsh
+        run: |
+          $nodeVersion = "v22.12.0"
+          $nodeUrl = "https://nodejs.org/dist/$nodeVersion/node-$nodeVersion-win-x64.zip"
+          Invoke-WebRequest -Uri $nodeUrl -OutFile "node.zip"
+          Expand-Archive -Path "node.zip" -DestinationPath "node-temp"
+          Move-Item -Path "node-temp/node-$nodeVersion-win-x64" -Destination "node-portable"
+          Remove-Item -Path "node.zip", "node-temp" -Recurse -Force
 
-      - name: Bundle with esbuild
-        run: pnpm exec esbuild dist/entry.js --bundle --platform=node --format=cjs --outfile=dist/bundle.cjs --external:better-sqlite3 --external:@napi-rs/canvas --external:node-llama-cpp --external:sharp --external:fsevents --external:@lydell/node-pty --external:playwright-core --external:@mariozechner/clipboard-win32-x64-msvc --external:*.node --allow-overwrite
+      - name: Create portable package
+        shell: pwsh
+        run: |
+          $portableDir = "openclaw-cn-portable"
+          New-Item -ItemType Directory -Force -Path $portableDir
+          
+          Copy-Item -Recurse -Force "dist" "$portableDir/"
+          Copy-Item -Recurse -Force "node_modules" "$portableDir/"
+          Copy-Item -Force "package.json" "$portableDir/"
+          Copy-Item -Recurse -Force "skills" "$portableDir/"
+          Copy-Item -Recurse -Force "node-portable" "$portableDir/node"
 
-      - name: Install pkg
-        run: npm install -g @yao-pkg/pkg
+      - name: Create launch scripts
+        shell: pwsh
+        run: |
+          $portableDir = "openclaw-cn-portable"
+          
+          $cmdContent = @"
+          @echo off
+          setlocal
+          set "SCRIPT_DIR=%~dp0"
+          set "NODE_PATH=%SCRIPT_DIR%node"
+          set "PATH=%NODE_PATH%;%PATH%"
+          "%NODE_PATH%\node.exe" "%SCRIPT_DIR%dist\entry.js" %*
+          endlocal
+          "@
+          Set-Content -Path "$portableDir/openclaw-cn.cmd" -Value $cmdContent -Encoding ASCII
+          
+          $ps1Content = @"
+          `$ScriptDir = Split-Path -Parent `$MyInvocation.MyCommand.Path
+          `$env:PATH = "`$ScriptDir\node;`$env:PATH"
+          & "`$ScriptDir\node\node.exe" "`$ScriptDir\dist\entry.js" @args
+          "@
+          Set-Content -Path "$portableDir/openclaw-cn.ps1" -Value $ps1Content -Encoding UTF8
 
-      - name: Build EXE
-        run: pkg dist/bundle.cjs --targets node22-win-x64 --output dist/openclaw-cn.exe --compress GZip
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          Compress-Archive -Path "openclaw-cn-portable" -DestinationPath "openclaw-cn-$version-win-x64.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: openclaw-cn-windows
-          path: dist/openclaw-cn.exe
+          path: openclaw-cn-*.zip
 
       - name: Create Release
         if: github.event_name == 'push' || github.event.inputs.version != ''
@@ -81,23 +120,24 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: OpenClaw CN ${{ steps.version.outputs.version }}
-          files: dist/openclaw-cn.exe
+          files: openclaw-cn-*.zip
           body: |
             ## OpenClaw CN ${{ steps.version.outputs.version }}
             
             ### 下载说明
-            - `openclaw-cn.exe` - 可执行文件
+            - `openclaw-cn-*-win-x64.zip` - 便携版（包含 Node.js 运行时，解压即用）
             
             ### 使用方法
-            直接运行 `openclaw-cn.exe`
+            1. 下载并解压 `openclaw-cn-*-win-x64.zip`
+            2. 双击运行 `openclaw-cn.cmd` 或在 PowerShell 中运行 `.\openclaw-cn.ps1`
             
             ### 快速开始
             ```bash
             # 运行安装向导
-            openclaw-cn.exe onboard --install-daemon
+            openclaw-cn.cmd onboard --install-daemon
             
             # 启动网关
-            openclaw-cn.exe gateway --port 18789 --verbose
+            openclaw-cn.cmd gateway --port 18789 --verbose
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
