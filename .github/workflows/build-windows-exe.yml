@@ -61,7 +61,7 @@ jobs:
         run: pnpm add -wD esbuild
 
       - name: Bundle with esbuild
-        run: pnpm exec esbuild dist/entry.js --bundle --platform=node --format=cjs --outfile=dist/bundle.cjs --external:better-sqlite3 --external:@napi-rs/canvas --external:node-llama-cpp --external:sharp --external:fsevents --external:@lydell/node-pty --external:playwright-core --external:@mariozechner/clipboard-win32-x64-msvc --external:*.node
+        run: pnpm exec esbuild dist/entry.js --bundle --platform=node --format=cjs --outfile=dist/bundle.cjs --external:better-sqlite3 --external:@napi-rs/canvas --external:node-llama-cpp --external:sharp --external:fsevents --external:@lydell/node-pty --external:playwright-core --external:@mariozechner/clipboard-win32-x64-msvc --external:*.node --allow-overwrite
 
       - name: Install pkg
         run: npm install -g @yao-pkg/pkg
